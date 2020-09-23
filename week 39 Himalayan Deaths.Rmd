@@ -1,0 +1,144 @@
+---
+title: "week 39 Mountains"
+author: "Alonso Cordova"
+date: "9/22/2020"
+output: html_document
+---
+
+
+```{r Load Packages}
+
+library(tidyverse)
+library(skimr)
+library(ggplot2)
+library(cowplot)
+library(ggtext)
+
+```
+
+
+
+
+
+
+
+Call this weeks data. We will only be using members.csv
+```{r Call data and Skim}
+
+
+expeditions <- read_csv("expeditions.csv")
+skim_expeditions <- skim(expeditions)
+
+
+peaks <- read_csv("peaks.csv")
+skim_peaks <- skim(peaks)
+
+
+members <- read_csv("members.csv")
+skim_members <- skim(members)
+
+
+
+```
+
+
+
+
+
+
+
+Death cause data prep and plotting
+```{r death_cause_prep}
+
+
+death_cnts <- members %>%       # getting all people
+  filter(died  == "TRUE")  %>% 
+  mutate(death_cause = case_when(death_cause == 'Crevasse' ~ 'Crevasse',      # clean groupings
+                         death_cause == 'Falling rock / ice' ~ 'Ice Hazard',
+                         death_cause == 'Icefall collapse' ~ 'Ice Hazard',
+                         death_cause == 'Disappearance (unexplained)' ~ 'Disappearance/Unexplained',
+                         death_cause == 'Unknown' ~ 'Disappearance/Unexplained',
+                         death_cause == 'Exposure / frostbite' ~ 'Exposure/Frostbite',
+                         TRUE ~ death_cause
+                         )) %>%   # only those who died
+  group_by(death_cause) %>%     # group by cause
+  count() %>%                    # count deaths by cause 
+  ungroup()
+
+
+# this will come after fixing groups
+death_cause_plot <- death_cnts %>% 
+  mutate(tot_cnt = sum(n),
+         death_per = round(n/tot_cnt,2)) %>% 
+  arrange(death_per) #%>% 
+
+
+
+
+death_cause_plot$death_cause <- as.factor(death_cause_plot$death_cause) %>% 
+  fct_inorder() #%>% fct_rev()
+  #filter(death_per >= .2)  
+
+
+
+
+```
+
+
+
+
+
+Plotting death_cnts (cause)
+```{r death_cause_plot}
+
+
+  
+p_cause <-  ggplot(death_cause_plot, aes(death_cause, n)) +
+    geom_bar(stat = "identity",
+             color = 'black',
+             width = .65,
+             position = position_dodge(width = .75)) +
+    # geom_text(label = death_cnts$n,
+    #           position = position_dodge(width = .75),
+    #           size = 3.5, 
+    #           fontface = 'bold',
+    #           hjust = 7
+    #           ) +
+    labs(title = 'Death in the Himalayans', # The show must go on
+        subtitle = "In total <span style='color:darkgreen;'>1,106</span> Himalayan Climbers have died between 1905-2019. Below we look at the<br> most common events that led people to their demise. Despite death, <span style='color:blue;'>41%</span> of these <br>expeditions went on to be completed successfully.</span>
+    </span>",
+         x = '',
+         y = '',
+         fill = '',
+    caption = "Data: The Himalayan Database | @Alocord") + # used for legend name
+  scale_y_continuous(limits = c(0,370), expand = c(0,0)) + 
+    # scale_fill_manual(values = vec_color1) +
+    coord_flip()  +
+    theme (
+      plot.title        = element_text(face = 'bold', size = 14),
+      plot.subtitle = element_markdown(size = 12),
+   #   plot.subtitle     = element_text(face = 'bold', size = 12),
+      plot.caption      = element_text(size = 8),
+      ##
+      panel.background  = element_blank(),
+      panel.grid        = element_blank(),
+      ##
+      legend.position    = "none", # top right
+      ##
+      axis.title.x      = element_text(face = 'bold', size = 10),
+     # axis.text.x       = element_text(angle = 90),
+     
+      ##
+      axis.title.y      = element_blank(),
+      axis.text.y       = element_text(face = 'bold', size = 10),
+      axis.line.y = element_line(),
+      ##
+      axis.ticks        = element_blank(),
+      plot.margin       = unit(c(.05, .05, .05, .05), "in")) #+
+
+p_cause
+
+
+ggsave("week39 deaths.png", p_cause,width = 9)
+
+```
